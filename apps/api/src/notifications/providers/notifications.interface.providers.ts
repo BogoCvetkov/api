@@ -1,22 +1,24 @@
 type NotificationsInterfaceParams = {
-  CreateListParams: any
-  UpdateListParams: any
-  DeleteListParams: any
-  AddToListParams: any
-  RemoveFromListParams: any
-  GetContactsInfoParams: any
-  RemoveFromUnsubscribedParams: any
-  AddToUnsubscribedParams: any
+  CreateListParams: unknown
+  UpdateListParams: unknown
+  DeleteListParams: unknown
+  AddToListParams: unknown
+  RemoveFromListParams: unknown
+  GetContactsInfoParams: unknown
+  RemoveFromUnsubscribedParams: unknown
+  AddToUnsubscribedParams: unknown
+  SendNotificationParams: unknown
 
   // Responses
-  CreateListRes: any
-  UpdateListRes: any
-  DeleteListRes: any
-  AddToListRes: any
-  RemoveFromListRes: any
-  GetContactsInfoRes: any
-  RemoveFromUnsubscribedRes: any
-  AddToUnsubscribedRes: any
+  CreateListRes: unknown
+  UpdateListRes: unknown
+  DeleteListRes: unknown
+  AddToListRes: unknown
+  RemoveFromListRes: unknown
+  GetContactsInfoRes: unknown
+  RemoveFromUnsubscribedRes: unknown
+  AddToUnsubscribedRes: unknown
+  SendNotificationRes: unknown
 }
 
 export abstract class NotificationsProviderInterface<T extends NotificationsInterfaceParams> {
@@ -30,4 +32,5 @@ export abstract class NotificationsProviderInterface<T extends NotificationsInte
   abstract removeFromUnsubscribed(
     data: T['RemoveFromUnsubscribedParams'],
   ): Promise<T['RemoveFromUnsubscribedRes']>
+  abstract sendNotification(data: T['SendNotificationParams']): Promise<T['SendNotificationRes']>
 }

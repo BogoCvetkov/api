@@ -14,7 +14,6 @@ import { PersonService } from '../person/person.service'
 import * as paymentReferenceGenerator from './helpers/payment-reference'
 import { CampaignSummaryDto } from './dto/campaign-summary.dto'
 import { NotificationModule } from '../sockets/notifications/notification.module'
-import { CampaignNewsModule } from '../campaign-news/campaign-news.module'
 import { CampaignSubscribeDto } from './dto/campaign-subscribe.dto'
 import { NotificationsProviderInterface } from '../notifications/providers/notifications.interface.providers'
 import { SendGridNotificationsProvider } from '../notifications/providers/notifications.sendgrid.provider'
@@ -23,6 +22,7 @@ import { NotificationGateway } from '../sockets/notifications/gateway'
 import { MarketingNotificationsService } from '../notifications/notifications.service'
 import { EmailService } from '../email/email.service'
 import { TemplateService } from '../email/template.service'
+import { CampaignNewsService } from '../campaign-news/campaign-news.service'
 
 describe('CampaignController', () => {
   let controller: CampaignController
@@ -156,7 +156,7 @@ describe('CampaignController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [NotificationModule, CampaignNewsModule],
+      imports: [NotificationModule],
       controllers: [CampaignController],
       providers: [
         {
@@ -171,6 +171,7 @@ describe('CampaignController', () => {
         PersonService,
         NotificationService,
         NotificationGateway,
+        CampaignNewsService,
         EmailService,
         TemplateService,
         MarketingNotificationsService,
@@ -198,6 +199,8 @@ describe('CampaignController', () => {
     marketingProvider = module.get<NotificationsProviderInterface<any>>(
       NotificationsProviderInterface,
     )
+
+    jest.spyOn(marketingProvider, 'sendNotification').mockImplementation(async () => true)
   })
 
   afterEach(() => {
@@ -448,7 +451,7 @@ describe('CampaignController', () => {
         .spyOn(campaignService, 'createCampaignNotificationList')
         .mockResolvedValue('campaign-list-id')
       jest.spyOn(marketingProvider, 'addContactsToList').mockImplementation(async () => '')
-      jest.spyOn(marketingService, 'sendUnregisteredConfirmEmail')
+      jest.spyOn(marketingService, 'sendConfirmEmail')
 
       const data: CampaignSubscribeDto = {
         email: person.email,
@@ -482,7 +485,7 @@ describe('CampaignController', () => {
         list_ids: ['campaign-list-id', 'list-id'],
       })
       expect(personServiceMock.update).not.toHaveBeenCalled()
-      expect(marketingService.sendUnregisteredConfirmEmail).not.toHaveBeenCalled()
+      expect(marketingService.sendConfirmEmail).not.toHaveBeenCalled()
     })
 
     it('should not generate a campaign marketing list if exists already', async () => {
@@ -528,7 +531,7 @@ describe('CampaignController', () => {
     it('should update the consent of a registered user if was not given previously', async () => {
       jest.spyOn(marketingProvider, 'addContactsToList').mockImplementation(async () => '')
       jest.spyOn(campaignService, 'createCampaignNotificationList')
-      jest.spyOn(marketingService, 'sendUnregisteredConfirmEmail')
+      jest.spyOn(marketingService, 'sendConfirmEmail')
 
       const data: CampaignSubscribeDto = {
         email: person.email,
@@ -556,13 +559,18 @@ describe('CampaignController', () => {
       expect(personServiceMock.findByEmail).toHaveBeenCalled()
       // Update consent
       expect(personServiceMock.update).toHaveBeenCalledWith(person.id, { newsletter: true })
-      expect(marketingService.sendUnregisteredConfirmEmail).not.toHaveBeenCalled()
+      expect(marketingService.sendConfirmEmail).not.toHaveBeenCalled()
     })
 
     it('should create a saparate notification consent record for non-registered emails', async () => {
       jest.spyOn(marketingProvider, 'addContactsToList').mockImplementation(async () => '')
       jest.spyOn(campaignService, 'createCampaignNotificationList')
-      jest.spyOn(marketingService, 'sendUnregisteredConfirmEmail')
+      jest.spyOn(marketingService, 'sendConfirmEmail')
+      prismaMock.unregisteredNotificationConsent.upsert.mockResolvedValue({
+        id: 'some-id',
+        email: 'email@.bg',
+        consent: false,
+      })
 
       const data: CampaignSubscribeDto = {
         email: person.email,
@@ -593,9 +601,15 @@ describe('CampaignController', () => {
       expect(marketingProvider.addContactsToList).not.toHaveBeenCalled()
       expect(personServiceMock.update).not.toHaveBeenCalled()
       // Create a special consent for unregistered emails
-      expect(marketingService.sendUnregisteredConfirmEmail).toHaveBeenCalledWith({
+      expect(prismaMock.unregisteredNotificationConsent.upsert).toHaveBeenCalledWith({
+        where: { email: person?.email },
+        create: { email: person?.email },
+        update: {},
+      })
+      expect(marketingService.sendConfirmEmail).toHaveBeenCalledWith({
         email: data.email,
         campaignId: campaign.id,
+        record_id: 'some-id',
       })
     })
   })
